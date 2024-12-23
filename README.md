@@ -25,4 +25,4 @@ The workflow of scPAS is shown in the following Figure:
 ### How to cite `scPAS` ###
 Please cite the following manuscript:
 
-> Xie A, Wang H, Zhao J, Wang Z, Xu J, Xu Y. (2024) *scPAS: single-cell phenotype-associated subpopulation identifier*. Brief Bioinform 26(1):bbae655. https://doi.org/10.1038/s41587-021-01091-3.    
+> Xie A, Wang H, Zhao J, Wang Z, Xu J, Xu Y. (2024) *scPAS: single-cell phenotype-associated subpopulation identifier*. Brief Bioinform 26(1):bbae655. https://doi.org/10.1093/bib/bbae655.    
