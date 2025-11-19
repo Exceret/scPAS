@@ -270,6 +270,12 @@ scPAS.optimized <- function(
             )
         }
         # Use matrix operations for efficient correlation
+        if (!inherits(Expression_cell, 'sparseMatrix')) {
+            Expression_cell <- Matrix::Matrix(
+                Expression_cell,
+                sparse = TRUE
+            )
+        }
         sparse.cor(Matrix::t(Expression_cell))
     }
 
@@ -501,3 +507,12 @@ scPAS.optimized <- function(
 
     return(sc_dataset)
 }
+
+# scPAS.optimized(
+#     bulk,
+#     seurat,
+#     pheno,
+#     family = 'cox',
+#     imputation = F,
+#     network_class = 'SC',
+# )
