@@ -5,6 +5,7 @@
 #####  Algorithm: one-step coordinate descent  #####
 ####################################################
 
+#' @keywords internal
 APML0 = function(
     x,
     y,
