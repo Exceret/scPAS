@@ -2,7 +2,36 @@
 #####  Linear Regression  #####
 ###############################
 
-#' @keywords internal
+#' @title Linear Model with L0 Regularization
+#' @description
+#' Fits linear regression models with L0 regularization for feature selection.
+#' Supports various penalty types including Lasso, Elastic Net, and Network regularization.
+#'
+#' @param x Input matrix of features
+#' @param y Response vector
+#' @param Omega Optional penalty matrix for network regularization
+#' @param alpha Elastic net mixing parameter (0 <= alpha <= 1)
+#' @param lambda Regularization parameter sequence
+#' @param nlambda Number of lambda values
+#' @param rlambda Ratio of smallest to largest lambda
+#' @param wbeta Adaptive weights for coefficients
+#' @param sgn Sign constraints for coefficients
+#' @param nfolds Number of folds for cross-validation
+#' @param foldid Optional fold assignments
+#' @param ill Whether to use log-likelihood for model selection
+#' @param iL0 Whether to use L0 regularization
+#' @param icutB Whether to use coefficient thresholding
+#' @param ncutB Number of coefficient cuts
+#' @param ifast Whether to use fast algorithm
+#' @param isd Whether to standardize features
+#' @param iysd Whether to standardize response
+#' @param keep.beta Whether to keep all coefficient paths
+#' @param thresh Convergence threshold for optimization
+#' @param maxit Maximum number of iterations
+#'
+#' @return List containing model coefficients, fit information, and regularization path
+#'
+#' @export
 LmL0 = function(
     x,
     y,
