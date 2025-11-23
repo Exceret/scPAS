@@ -2,6 +2,10 @@
 
 S3method(print,APML0)
 export(APML0)
+export(CoxL0)
+export(LmL0)
+export(LogL0)
+export(PrepCox)
 export(imputation2)
 export(imputation_ALRA2)
 export(imputation_KNN2)

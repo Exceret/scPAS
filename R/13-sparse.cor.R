@@ -56,5 +56,11 @@ sparse.cor <- function(x) {
     tcrossprod(Ex) * (n - length(ii))) /
     (n - 1)
   sdvec <- sqrt(Matrix::diag(covmat))
-  covmat / tcrossprod(sdvec) + .Machine$double.eps
+  res <- covmat / tcrossprod(sdvec) + .Machine$double.eps
+
+  if (!is.null(colnames(x))) {
+    rownames(res) <- colnames(x)
+    colnames(res) <- colnames(x)
+  }
+  res
 }
