@@ -153,359 +153,359 @@
 #' @family scPAS
 #'
 scPAS.optimized <- function(
-    bulk_dataset,
-    sc_dataset,
-    phenotype,
-    assay = 'RNA',
-    tag = NULL,
-    nfeature = NULL,
-    imputation = TRUE,
-    imputation_method = c('KNN', 'ALRA'),
-    alpha = NULL,
-    cutoff = 0.2,
-    network_class = c('SC', 'bulk'),
-    independent = TRUE,
-    family = c("gaussian", "binomial", "cox"),
-    permutation_times = 2000,
-    FDR.threshold = 0.05,
-    ...
+  bulk_dataset,
+  sc_dataset,
+  phenotype,
+  assay = 'RNA',
+  tag = NULL,
+  nfeature = NULL,
+  imputation = TRUE,
+  imputation_method = c('KNN', 'ALRA'),
+  alpha = NULL,
+  cutoff = 0.2,
+  network_class = c('SC', 'bulk'),
+  independent = TRUE,
+  family = c("gaussian", "binomial", "cox"),
+  permutation_times = 2000,
+  FDR.threshold = 0.05,
+  ...
 ) {
-    dots <- rlang::list2(...)
-    verbose <- dots$verbose %||% SigBridgeRUtils::getFuncOption("verbose")
-    seed <- dots$seed %||% SigBridgeRUtils::getFuncOption("seed")
+  dots <- rlang::list2(...)
+  verbose <- dots$verbose %||% SigBridgeRUtils::getFuncOption("verbose")
+  seed <- dots$seed %||% SigBridgeRUtils::getFuncOption("seed")
 
-    # Set default assay
-    Seurat::DefaultAssay(sc_dataset) <- assay
+  # Set default assay
+  Seurat::DefaultAssay(sc_dataset) <- assay
 
-    # Step 0: Common gene identification with optimized filtering
-    if (!inherits(sc_dataset, "Seurat")) {
-        cli::cli_abort(c("x" = "{.arg sc_dataset} must be a Seurat object."))
-    }
-    common_genes <- if (is.null(nfeature)) {
-        intersect(rownames(bulk_dataset), rownames(sc_dataset))
-    } else if (is.numeric(nfeature) && length(nfeature) == 1) {
-        sc_dataset <- Seurat::FindVariableFeatures(
-            sc_dataset,
-            selection.method = "vst",
-            verbose = FALSE,
-            nfeatures = nfeature
-        )
-        var_features <- Seurat::VariableFeatures(sc_dataset)
-
-        intersect(rownames(bulk_dataset), var_features)
-    } else if (is.character(nfeature) && length(nfeature) > 1) {
-        intersect(rownames(bulk_dataset), nfeature)
-    } else {
-        cli::cli_abort(c(
-            "x" = "{.arg nfeature} must be a numeric value, a character vector of gene names, or {.val NULL}. "
-        ))
-    }
-
-    # Filter out ribosomal and mitochondrial genes
-    gene_patterns <- c("^RP[LS]", "^MT-")
-    common_genes <- purrr::reduce(
-        gene_patterns,
-        function(genes, pattern) {
-            genes[!grepl(pattern, genes)]
-        },
-        .init = common_genes
+  # Step 0: Common gene identification with optimized filtering
+  if (!inherits(sc_dataset, "Seurat")) {
+    cli::cli_abort(c("x" = "{.arg sc_dataset} must be a Seurat object."))
+  }
+  common_genes <- if (is.null(nfeature)) {
+    intersect(rownames(bulk_dataset), rownames(sc_dataset))
+  } else if (is.numeric(nfeature) && length(nfeature) == 1) {
+    sc_dataset <- Seurat::FindVariableFeatures(
+      sc_dataset,
+      selection.method = "vst",
+      verbose = FALSE,
+      nfeatures = nfeature
     )
+    var_features <- Seurat::VariableFeatures(sc_dataset)
 
-    if (length(common_genes) == 0) {
-        cli::cli_abort(c(
-            "x" = "There is no common genes between the given single-cell and bulk samples."
-        ))
-    }
+    intersect(rownames(bulk_dataset), var_features)
+  } else if (is.character(nfeature) && length(nfeature) > 1) {
+    intersect(rownames(bulk_dataset), nfeature)
+  } else {
+    cli::cli_abort(c(
+      "x" = "{.arg nfeature} must be a numeric value, a character vector of gene names, or {.val NULL}. "
+    ))
+  }
 
-    # Step 1: Quantile normalization with matrix optimization
-    if (verbose) {
-        ts_cli$cli_alert_info("Quantile normalizing bulk data")
-    }
+  # Filter out ribosomal and mitochondrial genes
+  gene_patterns <- c("^RP[LS]", "^MT-")
+  common_genes <- purrr::reduce(
+    gene_patterns,
+    function(genes, pattern) {
+      genes[!grepl(pattern, genes)]
+    },
+    .init = common_genes
+  )
 
-    Expression_bulk <- SigBridgeRUtils::normalize.quantiles(
-        as.matrix(bulk_dataset[
-            common_genes,
-        ]),
-        keep.names = TRUE
+  if (length(common_genes) == 0) {
+    cli::cli_abort(c(
+      "x" = "There is no common genes between the given single-cell and bulk samples."
+    ))
+  }
+
+  # Step 1: Quantile normalization with matrix optimization
+  if (verbose) {
+    ts_cli$cli_alert_info("Quantile normalizing bulk data")
+  }
+
+  Expression_bulk <- SigBridgeRUtils::normalize.quantiles(
+    as.matrix(bulk_dataset[
+      common_genes,
+    ]),
+    keep.names = TRUE
+  )
+  # rownames(Expression_bulk) <- common_genes
+  # colnames(Expression_bulk) <- colnames(bulk_dataset)
+
+  # Step 2: Single-cell expression processing with data.table efficiency
+  if (imputation) {
+    sc_dataset <- imputation2(
+      obj = sc_dataset,
+      assay = assay,
+      method = imputation_method,
+      verbose = verbose
     )
-    # rownames(Expression_bulk) <- common_genes
-    # colnames(Expression_bulk) <- colnames(bulk_dataset)
-
-    # Step 2: Single-cell expression processing with data.table efficiency
-    if (imputation) {
-        sc_dataset <- imputation2(
-            obj = sc_dataset,
-            assay = assay,
-            method = imputation_method,
-            verbose = verbose
-        )
-        assay <- Seurat::DefaultAssay(sc_dataset)
-    }
-    if (verbose) {
-        ts_cli$cli_alert_info(
-            "Extracting single-cell expression profiles..."
-        )
-    }
-
-    sc_exprs <- SeuratObject::LayerData(sc_dataset) # Get expression data from Seurat
-    Expression_cell <- sc_exprs[common_genes, ]
-
-    rm(sc_exprs, bulk_dataset)
-
-    # Prepare X matrix
-    x <- Matrix::t(Expression_bulk)
-
-    # Step 3: Network construction with matrix optimizations
-    cor.m <- if (network_class == 'bulk') {
-        if (verbose) {
-            ts_cli$cli_alert_info(
-                "Constructing a gene-gene similarity by bulk data..."
-            )
-        }
-        stats::cor(x)
-    } else {
-        if (verbose) {
-            ts_cli$cli_alert_info(
-                "Constructing a gene-gene similarity by single cell data..."
-            )
-        }
-        # Use matrix operations for efficient correlation
-        if (!inherits(Expression_cell, 'sparseMatrix')) {
-            Expression_cell <- Matrix::Matrix(
-                Expression_cell,
-                sparse = TRUE
-            )
-        }
-        sparse.cor(Matrix::t(Expression_cell))
-    }
-
-    # Network construction
-    cor.m[cor.m < 0] <- 0
-    SNN <- Seurat::FindNeighbors(
-        1 - cor.m,
-        distance.matrix = TRUE,
-        verbose = verbose
+    assay <- Seurat::DefaultAssay(sc_dataset)
+  }
+  if (verbose) {
+    ts_cli$cli_alert_info(
+      "Extracting single-cell expression profiles..."
     )
-    Network <- as.matrix(SNN$snn)
-    diag(Network) <- 0
-    Network <- (Network > 0.2) * 1 # binarization
+  }
 
-    # Clean up
-    rm(cor.m, SNN)
-    gc(verbose = FALSE)
+  sc_exprs <- SeuratObject::LayerData(sc_dataset) # Get expression data from Seurat
+  Expression_cell <- sc_exprs[common_genes, ]
 
-    # Step 4: Model optimization with purrr functional programming
+  rm(sc_exprs, bulk_dataset)
+
+  # Prepare X matrix
+  x <- Matrix::t(Expression_bulk)
+
+  # Step 3: Network construction with matrix optimizations
+  cor.m <- if (network_class == 'bulk') {
     if (verbose) {
-        ts_cli$cli_alert_info(
-            "Optimizing the network-regularized sparse regression model..."
-        )
+      ts_cli$cli_alert_info(
+        "Constructing a gene-gene similarity by bulk data"
+      )
     }
-
-    # Prepare Y based on family using purrr pattern matching
-    family_processor <- list(
-        binomial = function() {
-            y <- as.numeric(phenotype)
-            if (verbose) {
-                z <- table(y)
-                ts_cli$cli_alert_info(
-                    "Current phenotype contains {.val {z[1]}} {tag[1]} and {.val {z[2]}} {tag[2]} samples."
-                )
-                ts_cli$cli_alert_info(
-                    "Perform {.strong logistic} regression on the given phenotypes..."
-                )
-            }
-            y
-        },
-        gaussian = function() {
-            y <- as.numeric(phenotype)
-            if (verbose) {
-                ts_cli$cli_alert_info(
-                    "Perform linear regression on the given phenotypes..."
-                )
-            }
-            y
-        },
-        cox = function() {
-            y <- as.matrix(phenotype)
-            if (ncol(y) != 2) {
-                cli::cli_abort(
-                    c(
-                        "x" = "The size of survival data is wrong. Please check inputs and selected regression type."
-                    ),
-                    class = "IncorrectNumberOfColumns"
-                )
-            }
-            if (verbose) {
-                ts_cli$cli_alert_info(
-                    "Perform cox regression on the given phenotypes..."
-                )
-            }
-            y
-        }
-    )
-
-    y <- family_processor[[family]]()
-
-    alpha <- alpha %||%
-        c(0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
-
-    lambda <- c()
-    for (i in seq_along(alpha)) {
-        set.seed(seed)
-
-        fit0 <- APML0(
-            x = x,
-            y = y,
-            family = family,
-            penalty = 'Net',
-            Omega = Network,
-            alpha = alpha[i],
-            nlambda = 100,
-            nfolds = min(10, nrow(x))
-        )
-
-        fit1 <- APML0(
-            x = x,
-            y = y,
-            family = family,
-            penalty = 'Net',
-            Omega = Network,
-            alpha = alpha[i],
-            lambda = fit0$lambda.min
-        )
-        lambda <- c(lambda, fit0$lambda.min)
-        # Extract coefficients using matrix indexing
-        Coefs <- if (family == "binomial") {
-            as.numeric(fit1$Beta[2:(ncol(x) + 1)])
-        } else {
-            as.numeric(fit1$Beta)
-        }
-
-        names(Coefs) <- colnames(x)
-        # Feature counting
-        pos_features <- colnames(x)[Coefs > 0]
-        neg_features <- colnames(x)[Coefs < 0]
-        percentage <- (length(pos_features) + length(neg_features)) /
-            ncol(x)
-
-        if (verbose) {
-            cli::cli_h2("At alpha = {.val {alpha[i]}}")
-            cli::cli_text("lambda = {.val {fit0$lambda.min}}")
-            cli::cli_text(
-                "scPAS identified {.val {length(pos_features)}} risk+ features and {.val {length(neg_features)}} risk- features."
-            )
-            percentage_show <- round(percentage * 100, digits = 3)
-            cli::cli_text(
-                "The percentage of selected feature is: {.val {percentage_show}}%"
-            )
-        }
-
-        if (percentage < cutoff) {
-            break
-        }
-    }
-
-    # Step 5: Risk score calculation
+    stats::cor(x)
+  } else {
     if (verbose) {
-        ts_cli$cli_alert_info("Calculating quantified risk scores...")
+      ts_cli$cli_alert_info(
+        "Constructing a gene-gene similarity by single cell data"
+      )
     }
-
-    # Sparse matrix scaling and risk calculation
-    scaled_exp <- Seurat:::FastSparseRowScale(
+    # Use matrix operations for efficient correlation
+    if (!inherits(Expression_cell, 'sparseMatrix')) {
+      Expression_cell <- Matrix::Matrix(
         Expression_cell,
-        display_progress = FALSE
-    )
-    scaled_exp[is.na(scaled_exp)] <- 0
-    scaled_exp <- Matrix::Matrix(scaled_exp) # Probably a dgCMatrix
-    # Matrix multiplication for risk scores
-    risk_score <- Matrix::crossprod(scaled_exp, Coefs)
-
-    # Step 6: Permutation test
-    if (verbose) {
-        ts_cli$cli_alert_info(
-            "Qualitative identification by permutation test program with {.val {permutation_times}} times random perturbations..."
-        )
+        sparse = TRUE
+      )
     }
+    sparse.cor(Matrix::t(Expression_cell))
+  }
 
+  # Network construction
+  cor.m[cor.m < 0] <- 0
+  SNN <- Seurat::FindNeighbors(
+    1 - cor.m,
+    distance.matrix = TRUE,
+    verbose = verbose
+  )
+  Network <- as.matrix(SNN$snn)
+  diag(Network) <- 0
+  Network <- (Network > 0.2) * 1 # binarization
+
+  # Clean up
+  rm(cor.m, SNN)
+  gc(verbose = FALSE)
+
+  # Step 4: Model optimization with purrr functional programming
+  if (verbose) {
+    ts_cli$cli_alert_info(
+      "Optimizing the network-regularized sparse regression model"
+    )
+  }
+
+  # Prepare Y based on family using purrr pattern matching
+  family_processor <- list(
+    binomial = function() {
+      y <- as.numeric(phenotype)
+      if (verbose) {
+        z <- table(y)
+        ts_cli$cli_alert_info(
+          "Current phenotype contains {.val {z[1]}} {tag[1]} and {.val {z[2]}} {tag[2]} samples."
+        )
+        ts_cli$cli_alert_info(
+          "Perform {.strong logistic} regression on the given phenotypes..."
+        )
+      }
+      y
+    },
+    gaussian = function() {
+      y <- as.numeric(phenotype)
+      if (verbose) {
+        ts_cli$cli_alert_info(
+          "Perform linear regression on the given phenotypes..."
+        )
+      }
+      y
+    },
+    cox = function() {
+      y <- as.matrix(phenotype)
+      if (ncol(y) != 2) {
+        cli::cli_abort(
+          c(
+            "x" = "The size of survival data is wrong. Please check inputs and selected regression type."
+          ),
+          class = "IncorrectNumberOfColumns"
+        )
+      }
+      if (verbose) {
+        ts_cli$cli_alert_info(
+          "Perform cox regression on the given phenotypes..."
+        )
+      }
+      y
+    }
+  )
+
+  y <- family_processor[[family]]()
+
+  alpha <- alpha %||%
+    c(0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
+
+  lambda <- c()
+  for (i in seq_along(alpha)) {
     set.seed(seed)
 
-    randomPermutation <- vapply(
-        seq_len(permutation_times),
-        function(i) {
-            set.seed(seed + i)
-            sample(Coefs, length(Coefs), replace = FALSE)
-        },
-        numeric(length(Coefs))
+    fit0 <- APML0(
+      x = x,
+      y = y,
+      family = family,
+      penalty = 'Net',
+      Omega = Network,
+      alpha = alpha[i],
+      nlambda = 100,
+      nfolds = min(10, nrow(x))
     )
 
-    randomPermutation <- Matrix::Matrix(randomPermutation) # Probably a dgeMatrix
-    # Matrix multiplication for background scores
-    risk_score.background <- Matrix::crossprod(scaled_exp, randomPermutation)
-    rm(randomPermutation)
-
-    # Calculate background statistics
-    if (independent) {
-        risk_bg_matrix <- as.matrix(risk_score.background)
-        mean.background <- rowMeans(risk_bg_matrix)
-        sd.background <- SigBridgeRUtils::rowSds(risk_bg_matrix)
-        rm(risk_bg_matrix)
+    fit1 <- APML0(
+      x = x,
+      y = y,
+      family = family,
+      penalty = 'Net',
+      Omega = Network,
+      alpha = alpha[i],
+      lambda = fit0$lambda.min
+    )
+    lambda <- c(lambda, fit0$lambda.min)
+    # Extract coefficients using matrix indexing
+    Coefs <- if (family == "binomial") {
+      as.numeric(fit1$Beta[2:(ncol(x) + 1)])
     } else {
-        risk_bg_vector <- as.vector(risk_score.background)
-        mean.background <- mean(risk_bg_vector)
-        sd.background <- stats::sd(risk_bg_vector)
-        rm(risk_bg_vector)
+      as.numeric(fit1$Beta)
     }
-    gc(verbose = FALSE)
 
-    # Z-score calculation
-    # Add small epsilon to avoid division by zero
-    sd.background[sd.background == 0] <- .Machine$double.eps
-    Z <- (risk_score[, 1] - mean.background) / sd.background
+    names(Coefs) <- colnames(x)
+    # Feature counting
+    pos_features <- colnames(x)[Coefs > 0]
+    neg_features <- colnames(x)[Coefs < 0]
+    percentage <- (length(pos_features) + length(neg_features)) /
+      ncol(x)
 
-    # Fast p-value and FDR calculation
-    p.value <- stats::pnorm(abs(Z), mean = 0, sd = 1, lower.tail = FALSE)
-    q.value <- stats::p.adjust(p.value, method = 'BH')
+    if (verbose) {
+      cli::cli_h2("At alpha = {.val {alpha[i]}}")
+      cli::cli_text("lambda = {.val {fit0$lambda.min}}")
+      cli::cli_text(
+        "scPAS identified {.val {length(pos_features)}} risk+ features and {.val {length(neg_features)}} risk- features."
+      )
+      percentage_show <- round(percentage * 100, digits = 3)
+      cli::cli_text(
+        "The percentage of selected feature is: {.val {percentage_show}}%"
+      )
+    }
 
-    risk_score_df <- data.table::data.table(
-        cell = colnames(Expression_cell),
-        raw_score = risk_score[, 1],
-        Z.statistics = Z,
-        p.value = p.value,
-        FDR = q.value
+    if (percentage < cutoff) {
+      break
+    }
+  }
+
+  # Step 5: Risk score calculation
+  if (verbose) {
+    ts_cli$cli_alert_info("Calculating quantified risk scores...")
+  }
+
+  # Sparse matrix scaling and risk calculation
+  scaled_exp <- Seurat:::FastSparseRowScale(
+    Expression_cell,
+    display_progress = FALSE
+  )
+  scaled_exp[is.na(scaled_exp)] <- 0
+  scaled_exp <- Matrix::Matrix(scaled_exp) # Probably a dgCMatrix
+  # Matrix multiplication for risk scores
+  risk_score <- Matrix::crossprod(scaled_exp, Coefs)
+
+  # Step 6: Permutation test
+  if (verbose) {
+    ts_cli$cli_alert_info(
+      "Qualitative identification by permutation test program with {.val {permutation_times}} times random perturbations..."
     )
+  }
 
-    # Fast conditional labeling using data.table
-    risk_score_df[,
-        cell_label := data.table::fcase(
-            Z > 0 & q.value <= FDR.threshold ,
-            "Positive"                       ,
-            Z < 0 & q.value <= FDR.threshold ,
-            "Negative"                       ,
-            default = "Neutral"
-        )
-    ]
+  set.seed(seed)
 
-    sc_dataset <- SigBridgeRUtils::AddMisc(
-        sc_dataset,
-        scPAS_para = list(
-            alpha = alpha,
-            lambda = lambda,
-            family = family,
-            Coefs = Coefs
-            # ,bulk = x,
-            # phenotype = y,
-            # Network = Network
-        ),
-        cover = FALSE
+  randomPermutation <- vapply(
+    seq_len(permutation_times),
+    function(i) {
+      set.seed(seed + i)
+      sample(Coefs, length(Coefs), replace = FALSE)
+    },
+    numeric(length(Coefs))
+  )
+
+  randomPermutation <- Matrix::Matrix(randomPermutation) # Probably a dgeMatrix
+  # Matrix multiplication for background scores
+  risk_score.background <- Matrix::crossprod(scaled_exp, randomPermutation)
+  rm(randomPermutation)
+
+  # Calculate background statistics
+  if (independent) {
+    risk_bg_matrix <- as.matrix(risk_score.background)
+    mean.background <- rowMeans(risk_bg_matrix)
+    sd.background <- SigBridgeRUtils::rowSds(risk_bg_matrix)
+    rm(risk_bg_matrix)
+  } else {
+    risk_bg_vector <- as.vector(risk_score.background)
+    mean.background <- mean(risk_bg_vector)
+    sd.background <- stats::sd(risk_bg_vector)
+    rm(risk_bg_vector)
+  }
+  gc(verbose = FALSE)
+
+  # Z-score calculation
+  # Add small epsilon to avoid division by zero
+  sd.background[sd.background == 0] <- .Machine$double.eps
+  Z <- (risk_score[, 1] - mean.background) / sd.background
+
+  # Fast p-value and FDR calculation
+  p.value <- stats::pnorm(abs(Z), mean = 0, sd = 1, lower.tail = FALSE)
+  q.value <- stats::p.adjust(p.value, method = 'BH')
+
+  risk_score_df <- data.table::data.table(
+    cell = colnames(Expression_cell),
+    raw_score = risk_score[, 1],
+    Z.statistics = Z,
+    p.value = p.value,
+    FDR = q.value
+  )
+
+  # Fast conditional labeling using data.table
+  risk_score_df[,
+    cell_label := data.table::fcase(
+      Z > 0 & q.value <= FDR.threshold ,
+      "Positive"                       ,
+      Z < 0 & q.value <= FDR.threshold ,
+      "Negative"                       ,
+      default = "Neutral"
     )
+  ]
 
-    sc_dataset$scPAS_RS <- risk_score_df$raw_score
-    sc_dataset$scPAS_NRS <- risk_score_df$Z.statistics
-    sc_dataset$scPAS_Pvalue <- risk_score_df$p.value
-    sc_dataset$scPAS_FDR <- risk_score_df$FDR
-    sc_dataset$scPAS <- risk_score_df$cell_label
+  sc_dataset <- SigBridgeRUtils::AddMisc(
+    sc_dataset,
+    scPAS_para = list(
+      alpha = alpha,
+      lambda = lambda,
+      family = family,
+      Coefs = Coefs
+      # ,bulk = x,
+      # phenotype = y,
+      # Network = Network
+    ),
+    cover = FALSE
+  )
 
-    return(sc_dataset)
+  sc_dataset$scPAS_RS <- risk_score_df$raw_score
+  sc_dataset$scPAS_NRS <- risk_score_df$Z.statistics
+  sc_dataset$scPAS_Pvalue <- risk_score_df$p.value
+  sc_dataset$scPAS_FDR <- risk_score_df$FDR
+  sc_dataset$scPAS <- risk_score_df$cell_label
+
+  return(sc_dataset)
 }
 
 # scPAS.optimized(
