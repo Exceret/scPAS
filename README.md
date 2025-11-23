@@ -1,6 +1,6 @@
 # scPAS : Single-Cell Phenotype-Associated Subpopulation identifier
 
-**Fork and tweaked by Exceret**
+**Forked and tweaked by Exceret**
 
 Please use [SigBridgeR](https://github.com/WangLabCSU/SigBridgeR) for
 the fork version of scPAS. Bug reports and feature requests are welcomed

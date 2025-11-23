@@ -2,7 +2,36 @@
 #####  Cox model  #####
 #######################
 
-#' @keywords internal
+#' @title Cox Model with L0 Regularization
+#' @description
+#' Fits Cox proportional hazards model with L0 regularization for feature selection.
+#' Supports various penalty types including Lasso, Elastic Net, and Network regularization.
+#'
+#' @param x Input matrix of features
+#' @param y Response matrix with time and status columns
+#' @param Omega Optional penalty matrix for network regularization
+#' @param alpha Elastic net mixing parameter (0 <= alpha <= 1)
+#' @param lambda Regularization parameter sequence
+#' @param nlambda Number of lambda values
+#' @param rlambda Ratio of smallest to largest lambda
+#' @param wbeta Adaptive weights for coefficients
+#' @param sgn Sign constraints for coefficients
+#' @param nfolds Number of folds for cross-validation
+#' @param foldid Optional fold assignments
+#' @param iL0 Whether to use L0 regularization
+#' @param icutB Whether to use coefficient thresholding
+#' @param ncutB Number of coefficient cuts
+#' @param ifast Whether to use fast algorithm
+#' @param isd Whether to standardize features
+#' @param ifastr Whether to use fast cross-validation
+#' @param keep.beta Whether to keep all coefficient paths
+#' @param thresh Convergence threshold for optimization
+#' @param maxit Maximum number of iterations
+#'
+#' @export
+#'
+#' @return List containing model coefficients, fit information, and regularization path
+#'
 CoxL0 = function(
     x,
     y,
@@ -677,6 +706,17 @@ CoxL0 = function(
 #####  Cox: Prepare data for log-likelihood  #####
 ##################################################
 
+#' @title Prepare Data for Cox Model
+#' @description
+#' Prepares survival data for Cox model fitting by sorting, handling ties,
+#' and organizing event information.
+#'
+#' @param x Input matrix of features
+#' @param y Response matrix with time and status columns
+#'
+#' @return List containing prepared data for Cox model fitting
+#'
+#' @export
 PrepCox = function(x, y) {
     N0 = nrow(x)
     oi = order(y[, "status"], decreasing = TRUE)

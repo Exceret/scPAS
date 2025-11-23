@@ -5,72 +5,42 @@
 #####  Algorithm: one-step coordinate descent  #####
 ####################################################
 
-#' @title Augmented and Penalized Minimization with L0 Regularization
+#' @title Adaptive Penalized Model with L0 Regularization
 #' @description
-#' Fits regularized regression models with L0 penalty for feature selection.
-#' Supports Gaussian, binomial, and Cox regression with various penalty types
-#' including Lasso, Elastic Net, and Network regularization.
+#' Fits adaptive penalized regression models with L0 regularization for feature selection.
+#' Supports Gaussian, binomial, and Cox regression with various penalty types.
 #'
-#' @param x Input matrix of features (n x p)
-#' @param y Response vector/matrix:
-#' - For Gaussian: numeric vector
-#' - For binomial: binary vector (0/1)
-#' - For Cox: matrix with columns "time" and "status"
-#' @param family Type of regression model: "gaussian", "binomial", or "cox"
-#' @param penalty Type of penalty: "Lasso" (L1), "Enet" (L1 + L2), or "Net" (L1 + Laplacian)
-#' @param Omega Optional penalty matrix for network regularization (for "Net" penalty)
-#' @param alpha Elastic net mixing parameter (0 <= alpha <= 1).
-#' alpha=1 for Lasso, alpha=0 for Ridge
-#' @param lambda Regularization parameter sequence. If NULL, automatically generated
-#' @param nlambda Number of lambda values to generate (default: 50)
-#' @param rlambda Ratio of smallest to largest lambda (default: adaptive)
-#' @param wbeta Adaptive weights for coefficients (default: all 1)
-#' @param sgn Sign constraints for coefficients (default: all 1)
-#' @param nfolds Number of folds for cross-validation (default: 1)
-#' @param foldid Optional vector specifying fold membership for each observation
-#' @param ill Whether to use log-likelihood for model selection (default: TRUE)
-#' @param iL0 Whether to use L0 regularization (default: TRUE)
-#' @param icutB Whether to use coefficient thresholding (default: FALSE)
-#' @param ncutB Number of coefficient cuts for thresholding (default: 10)
-#' @param ifast Whether to use fast algorithm (default: TRUE)
-#' @param isd Whether to standardize features (default: FALSE)
-#' @param iysd Whether to standardize response (Gaussian only, default: FALSE)
-#' @param ifastr Whether to use fast cross-validation (default: TRUE)
-#' @param keep.beta Whether to keep all coefficient paths (default: FALSE)
-#' @param thresh Convergence threshold for optimization (default: 1e-6)
-#' @param maxit Maximum number of iterations (default: 1e+5)
-#' @param threshC Convergence threshold for coordinate descent (default: 1e-5)
-#' @param maxitC Maximum iterations for coordinate descent (default: 1e+2)
-#' @param threshP Convergence threshold for proximal operator (default: 1e-5)
+#' @param x Input matrix of features
+#' @param y Response vector
+#' @param family Type of regression model ("gaussian", "binomial", "cox")
+#' @param penalty Type of penalty ("Lasso", "Enet", "Net")
+#' @param Omega Optional penalty matrix for network regularization
+#' @param alpha Elastic net mixing parameter (0 <= alpha <= 1)
+#' @param lambda Regularization parameter sequence
+#' @param nlambda Number of lambda values
+#' @param rlambda Ratio of smallest to largest lambda
+#' @param wbeta Adaptive weights for coefficients
+#' @param sgn Sign constraints for coefficients
+#' @param nfolds Number of folds for cross-validation
+#' @param foldid Optional fold assignments
+#' @param ill Whether to use L0 regularization
+#' @param iL0 Whether to use adaptive L0
+#' @param icutB Whether to use coefficient thresholding
+#' @param ncutB Number of coefficient cuts
+#' @param ifast Whether to use fast algorithm
+#' @param isd Whether to standardize features
+#' @param iysd Whether to standardize response
+#' @param ifastr Whether to use fast cross-validation
+#' @param keep.beta Whether to keep all coefficient paths
+#' @param thresh Convergence threshold for optimization
+#' @param maxit Maximum number of iterations
+#' @param threshC Convergence threshold for coordinate descent
+#' @param maxitC Maximum iterations for coordinate descent
+#' @param threshP Convergence threshold for proximal operator
 #'
-#' @return An object of class "APML0" containing:
-#' \item{Beta}{Estimated coefficients}
-#' \item{fit}{Model fit information including lambda path and performance metrics}
-#' \item{family}{Type of regression model}
-#' \item{penalty}{Type of penalty used}
-#' \item{adaptive}{Whether adaptive penalties were used}
-#' \item{flag}{Convergence flags}
-#'
-#'
-#' @examples
-#' \dontrun{
-#' # Gaussian regression example
-#' set.seed(123)
-#' x <- matrix(rnorm(100 * 20), 100, 20)
-#' y <- rnorm(100)
-#'
-#' # Fit Lasso model with L0 regularization
-#' fit <- APML0(x, y, family = "gaussian", penalty = "Lasso", nlambda = 30)
-#'
-#' # Cox regression example
-#' library(survival)
-#' y_surv <- cbind(time = rexp(100), status = rbinom(100, 1, 0.5))
-#' fit_cox <- APML0(x, y_surv, family = "cox", penalty = "Enet", alpha = 0.5)
-#' }
-#'
-#' @seealso
-#' [print.APML0()] for printing results, [LmL0()], [LogL0()], [CoxL0()]
 #' @export
+#'
+#' @return An object of class "APML0" containing model fit
 APML0 = function(
   x,
   y,
