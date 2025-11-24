@@ -27,40 +27,40 @@
 #'
 #' @export
 sparse.cor <- function(x) {
-  n <- nrow(x)
-  m <- ncol(x)
-  if (n < 2L) {
-    cli::cli_abort(c(
-      "x" = "{.arg x} must have at least 2 rows in correlation calculation",
-      ">" = "{.arg x} has {n} rows"
-    ))
-  }
-  if (m < 1L) {
-    cli::cli_abort(c(
-      "x" = "{.arg x} must have at least 1 column"
-    ))
-  }
-  if (m == 1L) {
-    cli::cli_warn(c(
-      "x" = "{.fun sparse.cor}: {.arg x} has only 1 column, returning a 1x1 matrix"
-    ))
-    return(matrix(1L, nrow = 1L, ncol = 1L))
-  }
+    n <- nrow(x)
+    m <- ncol(x)
+    if (n < 2L) {
+        cli::cli_abort(c(
+            "x" = "{.arg x} must have at least 2 rows in correlation calculation",
+            ">" = "{.arg x} has {n} rows"
+        ))
+    }
+    if (m < 1L) {
+        cli::cli_abort(c(
+            "x" = "{.arg x} must have at least 1 column"
+        ))
+    }
+    if (m == 1L) {
+        cli::cli_warn(c(
+            "x" = "{.fun sparse.cor}: {.arg x} has only 1 column, returning a 1x1 matrix"
+        ))
+        return(matrix(1L, nrow = 1L, ncol = 1L))
+    }
 
-  ii <- unique(x@i) + 1L # rows with a non-zero element
+    ii <- unique(x@i) + 1L # rows with a non-zero element
 
-  Ex <- Matrix::colMeans(x)
-  nozero <- as.vector(x[ii, , drop = FALSE]) - rep(Ex, each = length(ii)) # colmeans
+    Ex <- Matrix::colMeans(x)
+    nozero <- as.vector(x[ii, , drop = FALSE]) - rep(Ex, each = length(ii)) # colmeans
 
-  covmat <- (crossprod(matrix(nozero, ncol = m)) +
-    tcrossprod(Ex) * (n - length(ii))) /
-    (n - 1)
-  sdvec <- sqrt(Matrix::diag(covmat))
-  res <- covmat / tcrossprod(sdvec) + .Machine$double.eps
+    covmat <- (crossprod(matrix(nozero, ncol = m)) +
+        tcrossprod(Ex) * (n - length(ii))) /
+        (n - 1)
+    sdvec <- sqrt(Matrix::diag(covmat))
+    res <- covmat / tcrossprod(sdvec)
 
-  if (!is.null(colnames(x))) {
-    rownames(res) <- colnames(x)
-    colnames(res) <- colnames(x)
-  }
-  res
+    if (!is.null(colnames(x))) {
+        rownames(res) <- colnames(x)
+        colnames(res) <- colnames(x)
+    }
+    res
 }
