@@ -18,7 +18,7 @@ Imports:
     cli,
     purrr
 Remotes:
-    github: "WangLabCSU/SigBridgeRUtils"
+    github::WangLabCSU/SigBridgeRUtils
 LinkingTo: Rcpp, RcppEigen
 License: GPL (>= 2)
 Encoding: UTF-8
