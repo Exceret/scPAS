@@ -247,7 +247,11 @@ scPAS.optimized <- function(
         )
     }
 
-    sc_exprs <- SeuratObject::LayerData(sc_dataset) # Get expression data from Seurat
+    sc_exprs <- SeuratObject::LayerData(
+        sc_dataset,
+        assay = assay,
+        layer = 'data'
+    ) # Get expression data from Seurat
     Expression_cell <- sc_exprs[common_genes, ]
 
     rm(sc_exprs, bulk_dataset)
