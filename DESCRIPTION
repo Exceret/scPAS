@@ -14,7 +14,7 @@ Imports:
     methods,
     rlang,
     SeuratObject,
-    SigBridgeRUtils,
+    SigBridgeRUtils (>= 0.1.0),
     cli,
     purrr
 Remotes:

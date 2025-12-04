@@ -24,7 +24,7 @@ imputation2 <- function(
                     "Imputation of missing values in single cell RNA-sequencing data with {.val KNN}"
                 )
             }
-            imputation_KNN2(obj = obj, assay = assay, LogNormalized = T)
+            imputation_KNN2(obj = obj, assay = assay, LogNormalized = TRUE)
         },
         'ALRA' = {
             if (verbose) {
@@ -36,7 +36,8 @@ imputation2 <- function(
         },
         {
             cli::cli_warn(
-                'The {.val {method}} method does not exist, so imputaion is invalid!'
+                'The {.val {method}} method does not exist, so imputaion is invalid!',
+                "Skip imputation"
             )
             obj
         }

@@ -451,7 +451,7 @@ scPAS.optimized <- function(
     if (independent) {
         risk_bg_matrix <- as.matrix(risk_score.background)
         mean.background <- rowMeans(risk_bg_matrix)
-        sd.background <- SigBridgeRUtils::rowSds(risk_bg_matrix)
+        sd.background <- SigBridgeRUtils::rowSds3(risk_bg_matrix)
         rm(risk_bg_matrix)
     } else {
         risk_bg_vector <- as.vector(risk_score.background)
