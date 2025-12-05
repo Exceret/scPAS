@@ -4,12 +4,14 @@
 \alias{imputation_ALRA2}
 \title{A method for imputation of missing values in single cell RNA-sequencing data based on ALRA.}
 \usage{
-imputation_ALRA2(obj, assay = "RNA")
+imputation_ALRA2(obj, assay = "RNA", verbose = TRUE)
 }
 \arguments{
 \item{obj}{A seurat object.}
 
 \item{assay}{The assay for imputation. The default is 'RNA'.}
+
+\item{verbose}{whether to print messages}
 }
 \value{
 A seurat object after imputaion.

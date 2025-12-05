@@ -1,7 +1,7 @@
 Package: scPAS
 Type: Package
 Title: A tool for identifying phenotype-associated single-cell subpopulations by integrating bulk and single-cell sequencing data (scPheno)
-Version: 0.2.0
+Version: 0.2.1
 Author: c(person("Aimin", "Xie", role = c("aut", "cre"), email = "aiminyy1993@gmail.com"))
 Maintainer: Aimin Xie <aiminyy1993@gmail.com>
 Depends: R (>= 4.0.5)
@@ -18,7 +18,8 @@ Imports:
     cli,
     purrr
 Remotes:
-    github::WangLabCSU/SigBridgeRUtils
+    github::WangLabCSU/SigBridgeRUtils,
+    github::Exceret/ALRA
 LinkingTo: Rcpp, RcppEigen
 License: GPL (>= 2)
 Encoding: UTF-8
