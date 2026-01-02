@@ -4,7 +4,7 @@
 \alias{imputation_KNN2}
 \title{A method for imputation of missing values in single cell RNA-sequencing data based on the average expression value of nearest neighbor cells.}
 \usage{
-imputation_KNN2(obj, assay = "RNA", LogNormalized = T)
+imputation_KNN2(obj, assay = "RNA", LogNormalized = TRUE)
 }
 \arguments{
 \item{obj}{A seurat object.}
