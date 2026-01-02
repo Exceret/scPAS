@@ -114,8 +114,8 @@ imputation_KNN2 <- function(obj, assay = 'RNA', LogNormalized = T) {
     sparse = TRUE
   )
 
-  exp_sc_mean <- tcrossprod(
-    x = tcrossprod(x = exp_sc, y = nn_network),
+  exp_sc_mean <- Matrix::tcrossprod(
+    x = Matrix::tcrossprod(x = exp_sc, y = nn_network),
     y = network_count
   )
   if (LogNormalized) {

@@ -564,7 +564,7 @@ perform_permutation_test <- function(
   # Calculate background statistics
   if (independent) {
     risk_bg_matrix <- as.matrix(risk_score.background)
-    mean.background <- rowMeans(risk_bg_matrix)
+    mean.background <- SigBridgeRUtils::rowMeans3(risk_bg_matrix)
     sd.background <- SigBridgeRUtils::rowSds3(risk_bg_matrix)
     rm(risk_bg_matrix)
   } else {
