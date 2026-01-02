@@ -28,4 +28,5 @@ RoxygenNote: 7.3.3
 Suggests: 
     ALRA,
     matrixStats,
-    preprocessCore
+    preprocessCore,
+    WGCNA
