@@ -47,6 +47,10 @@ sparse.cor <- function(x) {
     return(matrix(1L, nrow = 1L, ncol = 1L))
   }
 
+  if (rlang::is_installed("WGCNA")) {
+    return(WGCNA::cor(as.matrix(x)))
+  }
+
   ii <- unique(x@i) + 1L # rows with a non-zero element
 
   Ex <- SigBridgeRUtils::colMeans3(x)

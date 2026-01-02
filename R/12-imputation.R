@@ -91,7 +91,7 @@ imputation_ALRA2 <- function(obj, assay = 'RNA', verbose = TRUE) {
 #' @family scPAS
 #' @family imputation
 #'
-imputation_KNN2 <- function(obj, assay = 'RNA', LogNormalized = T) {
+imputation_KNN2 <- function(obj, assay = 'RNA', LogNormalized = TRUE) {
   # library(Matrix)
   # exp_sc <- Seurat::GetAssayData(object = obj, assay = assay, slot = 'data')
   exp_sc <- SeuratObject::LayerData(obj, assay = assay, layer = "data")
