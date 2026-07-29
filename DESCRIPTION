@@ -17,6 +17,8 @@ Imports:
     SigBridgeRUtils (>= 0.2.1),
     cli,
     purrr
+Remotes:
+    github::Exceret/ALRA
 LinkingTo: Rcpp, RcppEigen
 License: GPL (>= 2)
 Encoding: UTF-8
@@ -27,4 +29,6 @@ Suggests:
     matrixStats,
     pak,
     preprocessCore,
+    testthat (>= 3.0.0),
     WGCNA
+Config/testthat/edition: 3
