@@ -147,7 +147,6 @@
 #'
 #' @references Xie A, Wang H, Zhao J, Wang Z, Xu J, Xu Y. scPAS: single-cell phenotype-associated subpopulation identifier. Briefings in Bioinformatics. 2024 Nov 22;26(1):bbae655.
 #'
-#' @importFrom methods as
 #'
 #' @export
 #' @family scPAS
@@ -171,51 +170,21 @@ scPAS.optimized <- function(
   ...
 ) {
   dots <- rlang::list2(...)
-  verbose <- dots$verbose %||% SigBridgeRUtils::getFuncOption("verbose")
-  seed <- dots$seed %||% SigBridgeRUtils::getFuncOption("seed")
+  verbose <- dots$verbose %||%
+    SigBridgeRUtils::getFuncOption("verbose") %||%
+    TRUE
+  seed <- dots$seed %||% SigBridgeRUtils::getFuncOption("seed") %||% TRUE
 
   # Set default assay
   Seurat::DefaultAssay(sc_dataset) <- assay
 
-  # Step 0: Common gene identification with optimized filtering
-  if (!inherits(sc_dataset, "Seurat")) {
-    cli::cli_abort(c("x" = "{.arg sc_dataset} must be a Seurat object."))
-  }
-  common_genes <- if (is.null(nfeature)) {
-    intersect(rownames(bulk_dataset), rownames(sc_dataset))
-  } else if (is.numeric(nfeature) && length(nfeature) == 1) {
-    sc_dataset <- Seurat::FindVariableFeatures(
-      sc_dataset,
-      selection.method = "vst",
-      verbose = FALSE,
-      nfeatures = nfeature
-    )
-    var_features <- Seurat::VariableFeatures(sc_dataset)
-
-    intersect(rownames(bulk_dataset), var_features)
-  } else if (is.character(nfeature) && length(nfeature) > 1) {
-    intersect(rownames(bulk_dataset), nfeature)
-  } else {
-    cli::cli_abort(c(
-      "x" = "{.arg nfeature} must be a numeric value, a character vector of gene names, or {.val NULL}. "
-    ))
-  }
-
-  # Filter out ribosomal and mitochondrial genes
-  gene_patterns <- c("^RP[LS]", "^MT-")
-  common_genes <- purrr::reduce(
-    gene_patterns,
-    function(genes, pattern) {
-      genes[!grepl(pattern, genes)]
-    },
-    .init = common_genes
+  # * Step 0: Common gene identification with optimized filtering
+  common_genes <- identify_common_genes(
+    bulk_dataset = bulk_dataset,
+    sc_dataset = sc_dataset,
+    nfeature = nfeature,
+    verbose = verbose
   )
-
-  if (length(common_genes) == 0) {
-    cli::cli_abort(c(
-      "x" = "There is no common genes between the given single-cell and bulk samples."
-    ))
-  }
 
   # Step 1: Quantile normalization with matrix optimization
   if (verbose) {
@@ -231,7 +200,7 @@ scPAS.optimized <- function(
   # rownames(Expression_bulk) <- common_genes
   # colnames(Expression_bulk) <- colnames(bulk_dataset)
 
-  # Step 2: Single-cell expression processing with data.table efficiency
+  # Step 2: Single-cell expression processing
   if (imputation) {
     sc_dataset <- imputation2(
       obj = sc_dataset,
@@ -306,6 +275,138 @@ scPAS.optimized <- function(
   }
 
   # Prepare Y based on family using purrr pattern matching
+  y <- prepare_phenotype(
+    phenotype = phenotype,
+    family = family,
+    tag = tag,
+    verbose = verbose
+  )
+
+  model <- optimize_model(
+    x = x,
+    y = y,
+    Network = Network,
+    alpha = alpha,
+    cutoff = cutoff,
+    family = family,
+    seed = seed,
+    verbose = verbose
+  )
+
+  # Step 5: Risk score calculation
+  if (verbose) {
+    ts_cli$cli_alert_info("Calculating quantified risk scores...")
+  }
+
+  # Sparse matrix scaling and risk calculation
+  scaled_exp <- Seurat:::FastSparseRowScale(
+    Expression_cell,
+    display_progress = FALSE
+  )
+  scaled_exp[is.na(scaled_exp)] <- 0
+  scaled_exp <- Matrix::Matrix(scaled_exp) # Probably a dgCMatrix
+  # Matrix multiplication for risk scores
+  risk_score <- Matrix::crossprod(scaled_exp, model$Coefs)
+
+  # Step 6: Permutation test
+  if (verbose) {
+    ts_cli$cli_alert_info(
+      "Qualitative identification by permutation test program with {.val {permutation_times}} times random perturbations..."
+    )
+  }
+
+  bg_stats <- perform_permutation_test(
+    scaled_exp = scaled_exp,
+    Coefs = model$Coefs,
+    permutation_times = permutation_times,
+    independent = independent,
+    FDR.threshold = FDR.threshold,
+    seed = seed
+  )
+
+  # Z-score calculation
+  risk_score_df <- calculate_risk_score(
+    risk_score = risk_score,
+    mean.background = bg_stats$mean.background,
+    sd.background = bg_stats$sd.background,
+    FDR.threshold = FDR.threshold,
+    cell_names = colnames(Expression_cell)
+  )
+
+  sc_dataset <- SigBridgeRUtils::AddMisc(
+    sc_dataset,
+    scPAS_para = list(
+      alpha = model$alpha,
+      lambda = model$lambda,
+      family = family,
+      Coefs = model$Coefs
+      # ,bulk = x,
+      # phenotype = y,
+      # Network = Network
+    ),
+    cover = FALSE
+  )
+
+  sc_dataset$scPAS_RS <- risk_score_df$raw_score
+  sc_dataset$scPAS_NRS <- risk_score_df$Z.statistics
+  sc_dataset$scPAS_Pvalue <- risk_score_df$p.value
+  sc_dataset$scPAS_FDR <- risk_score_df$FDR
+  sc_dataset$scPAS <- risk_score_df$cell_label
+
+  return(sc_dataset)
+}
+
+#' @title Identify Common Genes Between Datasets
+#' @keywords internal
+identify_common_genes <- function(
+  bulk_dataset,
+  sc_dataset,
+  nfeature = NULL,
+  verbose = TRUE
+) {
+  if (!inherits(sc_dataset, "Seurat")) {
+    cli::cli_abort(c("x" = "{.arg sc_dataset} must be a Seurat object."))
+  }
+
+  common_genes <- if (is.null(nfeature)) {
+    intersect(rownames(bulk_dataset), rownames(sc_dataset))
+  } else if (is.numeric(nfeature) && length(nfeature) == 1) {
+    sc_dataset <- Seurat::FindVariableFeatures(
+      sc_dataset,
+      selection.method = "vst",
+      verbose = FALSE,
+      nfeatures = nfeature
+    )
+    var_features <- Seurat::VariableFeatures(sc_dataset)
+    intersect(rownames(bulk_dataset), var_features)
+  } else if (is.character(nfeature) && length(nfeature) > 1) {
+    intersect(rownames(bulk_dataset), nfeature)
+  } else {
+    cli::cli_abort(c(
+      "x" = "{.arg nfeature} must be a numeric value, a character vector of gene names, or {.val NULL}."
+    ))
+  }
+
+  # Filter out ribosomal and mitochondrial genes
+  gene_patterns <- c("^RP[LS]", "^MT-")
+  common_genes <- purrr::reduce(
+    gene_patterns,
+    function(genes, pattern) genes[!grepl(pattern, genes)],
+    .init = common_genes
+  )
+
+  if (length(common_genes) == 0) {
+    cli::cli_abort(c(
+      "x" = "There are no common genes between the given single-cell and bulk samples."
+    ))
+  }
+
+  return(common_genes)
+}
+
+#' @title Prepare Phenotype Data Based on Regression Family
+#' @keywords internal
+prepare_phenotype <- function(phenotype, family, tag, verbose) {
   family_processor <- list(
     binomial = function() {
       y <- as.numeric(phenotype)
@@ -348,12 +449,27 @@ scPAS.optimized <- function(
     }
   )
 
-  y <- family_processor[[family]]()
+  family_processor[[family]]()
+}
 
+#' @title Optimize Model Parameters
+#' @keywords internal
+optimize_model <- function(
+  x,
+  y,
+  Network,
+  alpha,
+  cutoff,
+  family,
+  seed,
+  verbose
+) {
   alpha <- alpha %||%
     c(0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
 
   lambda <- c()
+  Coefs <- NULL
+
   for (i in seq_along(alpha)) {
     set.seed(seed)
 
@@ -377,20 +493,21 @@ scPAS.optimized <- function(
       alpha = alpha[i],
       lambda = fit0$lambda.min
     )
+
     lambda <- c(lambda, fit0$lambda.min)
-    # Extract coefficients using matrix indexing
+
+    # Extract coefficients
     Coefs <- if (family == "binomial") {
       as.numeric(fit1$Beta[2:(ncol(x) + 1)])
     } else {
       as.numeric(fit1$Beta)
     }
-
     names(Coefs) <- colnames(x)
+
     # Feature counting
     pos_features <- colnames(x)[Coefs > 0]
     neg_features <- colnames(x)[Coefs < 0]
-    percentage <- (length(pos_features) + length(neg_features)) /
-      ncol(x)
+    percentage <- (length(pos_features) + length(neg_features)) / ncol(x)
 
     if (verbose) {
       cli::cli_h2("At alpha = {.val {alpha[i]}}")
@@ -409,30 +526,26 @@ scPAS.optimized <- function(
     }
   }
 
-  # Step 5: Risk score calculation
-  if (verbose) {
-    ts_cli$cli_alert_info("Calculating quantified risk scores...")
-  }
-
-  # Sparse matrix scaling and risk calculation
-  scaled_exp <- Seurat:::FastSparseRowScale(
-    Expression_cell,
-    display_progress = FALSE
+  list(
+    alpha = alpha[i],
+    lambda = lambda,
+    Coefs = Coefs
   )
-  scaled_exp[is.na(scaled_exp)] <- 0
-  scaled_exp <- Matrix::Matrix(scaled_exp) # Probably a dgCMatrix
-  # Matrix multiplication for risk scores
-  risk_score <- Matrix::crossprod(scaled_exp, Coefs)
+}
 
-  # Step 6: Permutation test
-  if (verbose) {
-    ts_cli$cli_alert_info(
-      "Qualitative identification by permutation test program with {.val {permutation_times}} times random perturbations..."
-    )
-  }
-
+#' @title Perform Permutation Test
+#' @keywords internal
+perform_permutation_test <- function(
+  scaled_exp,
+  Coefs,
+  permutation_times,
+  independent,
+  FDR.threshold,
+  seed
+) {
   set.seed(seed)
 
+  # Generate random permutations
   randomPermutation <- vapply(
     seq_len(permutation_times),
     function(i) {
@@ -442,7 +555,8 @@ scPAS.optimized <- function(
     numeric(length(Coefs))
   )
 
-  randomPermutation <- Matrix::Matrix(randomPermutation) # Probably a dgeMatrix
+  randomPermutation <- Matrix::Matrix(randomPermutation)
+
   # Matrix multiplication for background scores
   risk_score.background <- Matrix::crossprod(scaled_exp, randomPermutation)
   rm(randomPermutation)
@@ -450,8 +564,8 @@ scPAS.optimized <- function(
   # Calculate background statistics
   if (independent) {
     risk_bg_matrix <- as.matrix(risk_score.background)
-    mean.background <- rowMeans(risk_bg_matrix)
-    sd.background <- SigBridgeRUtils::rowSds(risk_bg_matrix)
+    mean.background <- SigBridgeRUtils::rowMeans3(risk_bg_matrix)
+    sd.background <- SigBridgeRUtils::rowSds3(risk_bg_matrix)
     rm(risk_bg_matrix)
   } else {
     risk_bg_vector <- as.vector(risk_score.background)
@@ -459,18 +573,34 @@ scPAS.optimized <- function(
     sd.background <- stats::sd(risk_bg_vector)
     rm(risk_bg_vector)
   }
+
   gc(verbose = FALSE)
 
+  list(
+    mean.background = mean.background,
+    sd.background = sd.background
+  )
+}
+
+
+#' @title Calculate Statistics and Cell Labels
+#' @keywords internal
+calculate_risk_score <- function(
+  risk_score,
+  mean.background,
+  sd.background,
+  FDR.threshold,
+  cell_names
+) {
   # Z-score calculation
-  # sd.background[sd.background == 0] <- 1
   Z <- (risk_score[, 1] - mean.background) / sd.background
 
-  # Fast p-value and FDR calculation
+  # p-value and FDR calculation
   p.value <- stats::pnorm(abs(Z), mean = 0, sd = 1, lower.tail = FALSE)
   q.value <- stats::p.adjust(p.value, method = 'BH')
 
   risk_score_df <- data.table::data.table(
-    cell = colnames(Expression_cell),
+    cell = cell_names,
     raw_score = risk_score[, 1],
     Z.statistics = Z,
     p.value = p.value,
@@ -488,34 +618,5 @@ scPAS.optimized <- function(
     )
   ]
 
-  sc_dataset <- SigBridgeRUtils::AddMisc(
-    sc_dataset,
-    scPAS_para = list(
-      alpha = alpha,
-      lambda = lambda,
-      family = family,
-      Coefs = Coefs
-      # ,bulk = x,
-      # phenotype = y,
-      # Network = Network
-    ),
-    cover = FALSE
-  )
-
-  sc_dataset$scPAS_RS <- risk_score_df$raw_score
-  sc_dataset$scPAS_NRS <- risk_score_df$Z.statistics
-  sc_dataset$scPAS_Pvalue <- risk_score_df$p.value
-  sc_dataset$scPAS_FDR <- risk_score_df$FDR
-  sc_dataset$scPAS <- risk_score_df$cell_label
-
-  return(sc_dataset)
+  risk_score_df
 }
-
-# scPAS.optimized(
-#     bulk,
-#     seurat,
-#     pheno,
-#     family = 'cox',
-#     imputation = F,
-#     network_class = 'SC',
-# )

@@ -14,9 +14,11 @@ Imports:
     methods,
     rlang,
     SeuratObject,
-    SigBridgeRUtils,
+    SigBridgeRUtils (>= 0.2.1),
     cli,
     purrr
+Remotes:
+    github::Exceret/ALRA
 LinkingTo: Rcpp, RcppEigen
 License: GPL (>= 2)
 Encoding: UTF-8
@@ -25,4 +27,5 @@ RoxygenNote: 7.3.3
 Suggests: 
     ALRA,
     matrixStats,
-    preprocessCore
+    preprocessCore,
+    WGCNA

@@ -75,11 +75,9 @@ scPAS.prediction <- function(
 
   Coefs <- Coefs[common]
   Expression_cell <- Expression_cell[common, ]
-
-  FastSparseRowScale <- getFromNamespace("FastSparseRowScale", "Seurat")
-  scaled_exp <- FastSparseRowScale(
+  scaled_exp <- Seurat:::FastSparseRowScale(
     Expression_cell,
-    display_progress = verbose
+    display_progress = F
   )
   colnames(scaled_exp) <- colnames(Expression_cell)
   rownames(scaled_exp) <- rownames(Expression_cell)
@@ -103,7 +101,7 @@ scPAS.prediction <- function(
 
   if (independent) {
     mean.background <- SeuratObject::rowMeans(risk_score.background)
-    sd.background <- apply(risk_score.background, 1, sd)
+    sd.background <- apply(risk_score.background, 1, stats::sd)
   } else {
     mean.background <- mean(as.matrix(risk_score.background))
     sd.background <- stats::sd(as.matrix(risk_score.background))

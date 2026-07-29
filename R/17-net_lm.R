@@ -281,12 +281,12 @@ LmL0 <- function(
     cvRSS <- cvRSS[, 1:nlambdai, drop = FALSE]
     cvraw <- cvRSS / weighti
     nfoldi <- apply(!is.na(cvraw), 2, sum) #rm(cvRSS) #
-    cvm <- apply(cvraw, 2, weighted.mean, w = weighti, na.rm = TRUE)
+    cvm <- apply(cvraw, 2, stats::weighted.mean, w = weighti, na.rm = TRUE)
     cvse <- sqrt(
       apply(
         sweep(cvraw, 2, cvm, "-")^2,
         2,
-        weighted.mean,
+        stats::weighted.mean,
         w = weighti,
         na.rm = TRUE
       ) /
@@ -417,7 +417,7 @@ LmL0 <- function(
         cvm[[il0]] <- apply(
           cvraw,
           2,
-          weighted.mean,
+          stats::weighted.mean,
           w = weighti,
           na.rm = TRUE
         )
@@ -569,7 +569,7 @@ LmL0 <- function(
         cvm[[il0]] <- apply(
           cvraw,
           2,
-          weighted.mean,
+          stats::weighted.mean,
           w = weighti,
           na.rm = TRUE
         )
