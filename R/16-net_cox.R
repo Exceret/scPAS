@@ -59,7 +59,7 @@ CoxL0 <- function(
   ifastr <- as.integer(ifastr)
 
   ### Adaptive
-  aPen <- ifelse(all(wbeta > 0), TRUE, FALSE)
+  aPen <- all(wbeta > 0)
   wbeta2 <- ifelse(wbeta == 0, 0, 1)
 
   ### Lambda path
@@ -80,12 +80,12 @@ CoxL0 <- function(
 
   if (is.null(Omega)) {
     penalty <- ifelse(alpha == 1, "Lasso", "Enet")
-    adaptive <- ifelse(any(wbeta != 1), TRUE, FALSE)
+    adaptive <- any(wbeta != 1)
   } else {
     penalty <- ifelse(alpha == 1, "Lasso", "Net")
     adaptive <- c(
-      ifelse(any(wbeta != 1), TRUE, FALSE),
-      ifelse(any(sgn != 1), TRUE, FALSE)
+      any(wbeta != 1),
+      any(sgn != 1)
     )
 
     Omega <- rbind(0, cbind(0, Omega))
@@ -166,12 +166,15 @@ CoxL0 <- function(
   lambdai <- out$lambda[1:nlambdai]
 
   out$Beta[is.na(out$Beta)] <- out$BetaSTD[is.na(out$Beta)]
-  out$Beta <- Matrix::Matrix(out$Beta[, 1:nlambdai, drop = F], sparse = TRUE)
+  out$Beta <- Matrix::Matrix(
+    out$Beta[, 1:nlambdai, drop = FALSE],
+    sparse = TRUE
+  )
   out$BetaSTD <- Matrix::Matrix(out$BetaSTD[, 1:nlambdai], sparse = TRUE)
-  out$nzero <- apply(out$Beta != 0, 2, sum)
+  out$nzero <- Matrix::colSums(out$Beta != 0)
   out$flag <- out$flag[1:nlambdai]
 
-  if (nfolds == 1 & is.null(foldid)) {
+  if (nfolds == 1 && is.null(foldid)) {
     fit <- data.frame(lambda = lambdai, nzero = out$nzero)
     if (!isd) {
       return(list(
@@ -281,13 +284,13 @@ CoxL0 <- function(
         outi[[i]]$ll[1:outi[[i]]$nlambda]
     }
 
-    temi <- apply(abs(cvPL) == Inf, 2, sum, na.rm = TRUE)
+    temi <- Matrix::colSums(abs(cvPL) == Inf, na.rm = TRUE)
     if (any(temi > 0)) {
       nlambdai <- max(min(which(temi > 0)) - 1, 1)
     }
 
     cvraw <- cvPL / weighti
-    nfoldi <- apply(!is.na(cvraw), 2, sum) #rm(cvPL) #
+    nfoldi <- Matrix::colSums(!is.na(cvraw)) #rm(cvPL) #
     cvm <- apply(cvraw, 2, stats::weighted.mean, w = weighti, na.rm = TRUE)
     cvse <- sqrt(
       apply(
@@ -422,7 +425,7 @@ CoxL0 <- function(
         }
 
         cvraw <- cvPL / weighti
-        nfoldi <- apply(!is.na(cvraw), 2, sum) #rm(cvPL) #
+        nfoldi <- Matrix::colSums(!is.na(cvraw)) #rm(cvPL) #
         cvm[[il0]] <- apply(
           cvraw,
           2,
@@ -445,7 +448,7 @@ CoxL0 <- function(
         if (ifast) {
           if (sum(!is.na(cv.max)) > 1) {
             if (
-              !is.na(cv.max[pmin(il1 + 1, nlambdai)]) &
+              !is.na(cv.max[pmin(il1 + 1, nlambdai)]) &&
                 !is.na(cv.max[pmax(il1 - 1, 1)])
             ) {
               break
@@ -504,7 +507,7 @@ CoxL0 <- function(
           x$BetaSTD[, il0, drop = FALSE]
         })
 
-        Betao <- apply(Betai != 0, 2, sum)
+        Betao <- Matrix::colSums(Betai != 0)
         numi2 <- pmax(min(max(Betao), numi), 1)
 
         cvPL <- matrix(NA, nrow = nfolds, ncol = numi2)
@@ -570,7 +573,7 @@ CoxL0 <- function(
         }
 
         cvraw <- cvPL / weighti
-        nfoldi <- apply(!is.na(cvraw), 2, sum) #rm(cvPL) #
+        nfoldi <- Matrix::colSums(!is.na(cvraw)) #rm(cvPL) #
         cvm[[il0]] <- apply(
           cvraw,
           2,
@@ -593,7 +596,7 @@ CoxL0 <- function(
         if (ifast) {
           if (sum(!is.na(cv.max)) > 1) {
             if (
-              !is.na(cv.max[pmin(il1 + 1, nlambdai)]) &
+              !is.na(cv.max[pmin(il1 + 1, nlambdai)]) &&
                 !is.na(cv.max[pmax(il1 - 1, 1)])
             ) {
               break

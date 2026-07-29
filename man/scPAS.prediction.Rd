@@ -9,9 +9,9 @@ scPAS.prediction(
   test.data,
   assay = "RNA",
   FDR.threshold = 0.05,
-  imputation = F,
+  imputation = FALSE,
   imputation_method = "KNN",
-  independent = T
+  independent = TRUE
 )
 }
 \arguments{

@@ -6,7 +6,21 @@
 \usage{
 prepare_phenotype(phenotype, family, tag, verbose)
 }
-\description{
-Prepare Phenotype Data Based on Regression Family
+\arguments{
+\item{phenotype}{Phenotype annotation; format depends on `family`.}
+
+\item{family}{Regression family: `"gaussian"`, `"binomial"`, or `"cox"`.}
+
+\item{tag}{Character vector of length 2 specifying group names for
+binomial regression.}
+
+\item{verbose}{Logical; whether to print progress messages.}
 }
-\keyword{internal}
+\value{
+A numeric vector (gaussian/binomial) or matrix (cox) of
+  phenotype values.
+}
+\description{
+Prepares the phenotype vector for regression analysis based on the
+specified family (gaussian, binomial, or cox).
+}

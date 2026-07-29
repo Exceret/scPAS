@@ -12,7 +12,24 @@ calculate_risk_score(
   cell_names
 )
 }
-\description{
-Calculate Statistics and Cell Labels
+\arguments{
+\item{risk_score}{Numeric vector of raw risk scores for each cell.}
+
+\item{mean.background}{Mean of the background risk score distribution.}
+
+\item{sd.background}{Standard deviation of the background risk score
+distribution.}
+
+\item{FDR.threshold}{FDR threshold for classifying cells.}
+
+\item{cell_names}{Character vector of cell barcodes/names.}
 }
-\keyword{internal}
+\value{
+A data.table with columns: `cell`, `raw_score`, `Z.statistics`,
+  `p.value`, `FDR`, and `cell_label`.
+}
+\description{
+Calculates Z-statistics, p-values, FDR-adjusted q-values, and assigns
+cell labels ("Positive", "Negative", or "Neutral") based on risk scores
+and background statistics.
+}

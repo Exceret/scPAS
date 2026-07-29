@@ -61,7 +61,7 @@ LogL0 <- function(
   p <- ncol(x)
 
   ### Adaptive
-  aPen <- ifelse(all(wbeta > 0), TRUE, FALSE)
+  aPen <- all(wbeta > 0)
 
   ### Lambda path
   if (all(wbeta == 0)) {
@@ -81,12 +81,12 @@ LogL0 <- function(
 
   if (is.null(Omega)) {
     penalty <- ifelse(alpha == 1, "Lasso", "Enet")
-    adaptive <- ifelse(any(wbeta != 1), TRUE, FALSE)
+    adaptive <- any(wbeta != 1)
   } else {
     penalty <- ifelse(alpha == 1, "Lasso", "Net")
     adaptive <- c(
-      ifelse(any(wbeta != 1), TRUE, FALSE),
-      ifelse(any(sgn != 1), TRUE, FALSE)
+      any(wbeta != 1),
+      any(sgn != 1)
     )
 
     Omega <- rbind(0, cbind(0, Omega))
@@ -162,14 +162,17 @@ LogL0 <- function(
   lambdai <- out$lambda[1:nlambdai]
 
   out$Beta[is.na(out$Beta)] <- out$BetaSTD[is.na(out$Beta)]
-  out$Beta <- Matrix::Matrix(out$Beta[, 1:nlambdai, drop = F], sparse = TRUE)
+  out$Beta <- Matrix::Matrix(
+    out$Beta[, 1:nlambdai, drop = FALSE],
+    sparse = TRUE
+  )
   out$BetaSTD <- Matrix::Matrix(out$BetaSTD[, 1:nlambdai], sparse = TRUE)
-  out$nzero <- apply(out$Beta != 0, 2, sum)
+  out$nzero <- Matrix::colSums(out$Beta != 0)
   out$flag <- out$flag[1:nlambdai]
   out$LL <- out$LL[1:nlambdai]
-  out$nzero <- apply(out$Beta != 0, 2, sum)
+  out$nzero <- Matrix::colSums(out$Beta != 0)
 
-  if (nfolds == 1 & is.null(foldid)) {
+  if (nfolds == 1 && is.null(foldid)) {
     fit <- data.frame(
       lambda = lambdai,
       pDev = (out$ll0 - out$LL) / out$ll0,
@@ -217,11 +220,11 @@ LogL0 <- function(
     for (i in 1:nfolds) {
       temid <- (foldid == i)
 
-      if (any(y[!temid] == 0) & any(y[!temid] == 1)) {
+      if (any(y[!temid] == 0) && any(y[!temid] == 1)) {
         outi[[i]] <- switch(
           penalty,
           "Net" = cvNetLogC(
-            x1[!temid, , drop = F],
+            x1[!temid, , drop = FALSE],
             y[!temid],
             alpha,
             lambdai,
@@ -235,13 +238,13 @@ LogL0 <- function(
             N0i[i],
             thresh,
             maxit,
-            x1[temid, , drop = F],
+            x1[temid, , drop = FALSE],
             y[temid],
             Nf[i],
             threshP
           ),
           cvEnetLogC(
-            x1[!temid, , drop = F],
+            x1[!temid, , drop = FALSE],
             y[!temid],
             alpha,
             lambdai,
@@ -252,7 +255,7 @@ LogL0 <- function(
             N0i[i],
             thresh,
             maxit,
-            x1[temid, , drop = F],
+            x1[temid, , drop = FALSE],
             y[temid],
             Nf[i],
             threshP
@@ -270,9 +273,9 @@ LogL0 <- function(
       }
     }
 
-    cvRSS <- cvRSS[, 1:nlambdai, drop = F]
+    cvRSS <- cvRSS[, 1:nlambdai, drop = FALSE]
     cvraw <- cvRSS / weighti
-    nfoldi <- apply(!is.na(cvraw), 2, sum) #rm(cvRSS) #
+    nfoldi <- Matrix::colSums(!is.na(cvraw)) #rm(cvRSS) #
     cvm <- apply(cvraw, 2, stats::weighted.mean, w = weighti, na.rm = TRUE)
     cvse <- sqrt(
       apply(
@@ -362,13 +365,13 @@ LogL0 <- function(
 
         Betai <- matrix(
           sapply(outi, function(x) {
-            x$Beta[, il0, drop = F]
+            x$Beta[, il0, drop = FALSE]
           }),
           nrow = p1
         )
         BetaSTDi <- matrix(
           sapply(outi, function(x) {
-            x$BetaSTD[, il0, drop = F]
+            x$BetaSTD[, il0, drop = FALSE]
           }),
           nrow = p1
         )
@@ -399,7 +402,7 @@ LogL0 <- function(
         }
 
         cvraw <- cvRSS / weighti
-        nfoldi <- apply(!is.na(cvraw), 2, sum) #rm(cvRSS) #
+        nfoldi <- Matrix::colSums(!is.na(cvraw)) #rm(cvRSS) #
         cvm[[il0]] <- apply(
           cvraw,
           2,
@@ -416,7 +419,7 @@ LogL0 <- function(
         if (ifast) {
           if (sum(!is.na(cv.min)) > 1) {
             if (
-              !is.na(cv.min[pmin(il1 + 1, nlambdai)]) &
+              !is.na(cv.min[pmin(il1 + 1, nlambdai)]) &&
                 !is.na(cv.min[pmax(il1 - 1, 1)])
             ) {
               break
@@ -470,18 +473,18 @@ LogL0 <- function(
         numi <- out$nzero[il0]
         Betai <- matrix(
           sapply(outi, function(x) {
-            x$Beta[, il0, drop = F]
+            x$Beta[, il0, drop = FALSE]
           }),
           nrow = p1
         )
         BetaSTDi <- matrix(
           sapply(outi, function(x) {
-            x$BetaSTD[, il0, drop = F]
+            x$BetaSTD[, il0, drop = FALSE]
           }),
           nrow = p1
         )
 
-        Betao <- apply(Betai != 0, 2, sum)
+        Betao <- Matrix::colSums(Betai != 0)
         numi2 <- pmax(min(max(Betao), numi), 1)
 
         cvRSS <- matrix(NA, nrow = nfolds, ncol = numi2)
@@ -507,10 +510,10 @@ LogL0 <- function(
             numj,
             numi2,
             temo$loc - 1,
-            x1[!temid, , drop = F],
+            x1[!temid, , drop = FALSE],
             y[!temid],
             N0i[i],
-            x1[temid, , drop = F],
+            x1[temid, , drop = FALSE],
             y[temid],
             Nf[i],
             threshC,
@@ -520,7 +523,7 @@ LogL0 <- function(
         }
 
         cvraw <- cvRSS / weighti
-        nfoldi <- apply(!is.na(cvraw), 2, sum) #rm(cvRSS) #
+        nfoldi <- Matrix::colSums(!is.na(cvraw)) #rm(cvRSS) #
         cvm[[il0]] <- apply(
           cvraw,
           2,
@@ -539,7 +542,7 @@ LogL0 <- function(
         if (ifast) {
           if (sum(!is.na(cv.min)) > 1) {
             if (
-              !is.na(cv.min[pmin(il1 + 1, nlambdai)]) &
+              !is.na(cv.min[pmin(il1 + 1, nlambdai)]) &&
                 !is.na(cv.min[pmax(il1 - 1, 1)])
             ) {
               break

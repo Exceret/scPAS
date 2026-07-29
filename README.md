@@ -1,5 +1,9 @@
 # scPAS : Single-Cell Phenotype-Associated Subpopulation identifier
 
+ <!-- badges: start -->
+  [![R-CMD-check](https://github.com/Exceret/scPAS/actions/workflows/R-CMD-check.yaml/badge.svghttps://github.com/Exceret/scPAS/actions/workflows/R-CMD-check.yaml/badge.svghttps://github.com/Exceret/scPAS/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/Exceret/scPAS/actions/workflows/R-CMD-check.yaml)
+  <!-- badges: end -->
+
 **Forked and tweaked by Exceret**
 
 Please use [SigBridgeR](https://github.com/WangLabCSU/SigBridgeR) for
@@ -7,6 +11,10 @@ the fork version of scPAS. Bug reports and feature requests are welcomed
 at [SigBridgeR-issues](https://github.com/WangLabCSU/SigBridgeR/issues).
 
 -   News:
+    -   2026-07-29:
+        -    Fixed lints and pretty formatting.
+        -    Added checking badge
+        -    Eased Installation
     -   2025-11-19: initial tweaks
 
 A tool for identifying phenotype-associated cell subpopulations from single-cell sequencing data by integrating bulk data \### Introduction \### `scPAS` is a new tool which enables the quantitative estimation of the strength of association between each cell in scRNA-seq data and a phenotype by constructing a network-regularized sparse regression model. This model integrates bulk RNA-seq data with phenotype information and the gene-gene similarity network from single-cell data.

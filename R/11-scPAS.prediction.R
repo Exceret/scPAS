@@ -31,9 +31,9 @@ scPAS.prediction <- function(
   test.data,
   assay = 'RNA',
   FDR.threshold = 0.05,
-  imputation = F,
+  imputation = FALSE,
   imputation_method = 'KNN',
-  independent = T
+  independent = TRUE
 ) {
   model <- SeuratObject::Misc(model, slot = 'scPAS_para')
 
@@ -75,9 +75,10 @@ scPAS.prediction <- function(
 
   Coefs <- Coefs[common]
   Expression_cell <- Expression_cell[common, ]
-  scaled_exp <- Seurat:::FastSparseRowScale(
+  FastSparseRowScale <- utils::getFromNamespace("FastSparseRowScale", "Seurat")
+  scaled_exp <- FastSparseRowScale(
     Expression_cell,
-    display_progress = F
+    display_progress = FALSE
   )
   colnames(scaled_exp) <- colnames(Expression_cell)
   rownames(scaled_exp) <- rownames(Expression_cell)
@@ -92,7 +93,7 @@ scPAS.prediction <- function(
     X = seq_len(2000),
     FUN = function(x) {
       set.seed(1234 + x)
-      sample(Coefs, length(Coefs), replace = F)
+      sample(Coefs, length(Coefs), replace = FALSE)
     },
     FUN.VALUE = numeric(length(Coefs))
   )
@@ -109,7 +110,7 @@ scPAS.prediction <- function(
 
   Z <- (risk_score[, 1] - mean.background) / sd.background
 
-  p.value <- stats::pnorm(q = abs(Z), mean = 0, sd = 1, lower.tail = F)
+  p.value <- stats::pnorm(q = abs(Z), mean = 0, sd = 1, lower.tail = FALSE)
   q.value <- stats::p.adjust(p = p.value, method = 'BH')
 
   risk_score_data.frame <- data.frame(

@@ -39,18 +39,18 @@ print.APML0 <- function(x, digits = 4, ...) {
     cat("\nRegularized Cox model: ", tem)
   }
 
-  if (x$penalty %in% c("Lasso", "Enet") & x$adaptive[1]) {
+  if (x$penalty %in% c("Lasso", "Enet") && x$adaptive[1]) {
     cat("\nAdaptive: Beta (L1)")
-  } else if (x$penalty == "Net" & sum(x$adaptive) == 1) {
+  } else if (x$penalty == "Net" && sum(x$adaptive) == 1) {
     cat("\nAdaptive: ", c("Beta (L1)", "sign (Laplacian)")[x$adaptive])
-  } else if (x$penalty == "Net" & sum(x$adaptive) == 2) {
+  } else if (x$penalty == "Net" && sum(x$adaptive) == 2) {
     cat("\nAdaptive: Beta (L1), sign (Laplacian)")
   }
 
   cat("\n\n\nThe path of lambda:\n\n")
   if (!any(colnames(x$fit) %in% "cvm")) {
     print(signif(x$fit, digits))
-  } else if (any(colnames(x$fit) %in% "cvm") & is.null(x$lambda.opt)) {
+  } else if (any(colnames(x$fit) %in% "cvm") && is.null(x$lambda.opt)) {
     #print(signif(x$fit,digits))
     switch(
       x$family,
@@ -58,7 +58,7 @@ print.APML0 <- function(x, digits = 4, ...) {
       "binomial" = print(cbind(signif(x$fit[-6], digits), x$fit[6])),
       "cox" = print(cbind(signif(x$fit[-5], digits), x$fit[5]))
     )
-  } else if (any(colnames(x$fit) %in% "cvm") & !is.null(x$lambda.opt)) {
+  } else if (any(colnames(x$fit) %in% "cvm") && !is.null(x$lambda.opt)) {
     #print(signif(x$fit,digits))
     switch(
       x$family,

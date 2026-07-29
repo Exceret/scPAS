@@ -6,7 +6,29 @@
 \usage{
 optimize_model(x, y, Network, alpha, cutoff, family, seed, verbose)
 }
-\description{
-Optimize Model Parameters
+\arguments{
+\item{x}{Design matrix (samples x genes).}
+
+\item{y}{Response vector or matrix.}
+
+\item{Network}{Gene-gene similarity network matrix.}
+
+\item{alpha}{Numeric vector of alpha values to try, or `NULL` for defaults.}
+
+\item{cutoff}{Threshold for the proportion of selected features to stop
+iteration.}
+
+\item{family}{Regression family: `"gaussian"`, `"binomial"`, or `"cox"`.}
+
+\item{seed}{Random seed for reproducibility.}
+
+\item{verbose}{Logical; whether to print progress messages.}
 }
-\keyword{internal}
+\value{
+A list with components `alpha`, `lambda`, and `Coefs`.
+}
+\description{
+Optimizes alpha and lambda parameters for the network-regularized sparse
+regression model (APML0) by iterating over alpha values until the
+proportion of selected features falls below a cutoff.
+}

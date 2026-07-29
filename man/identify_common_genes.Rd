@@ -11,7 +11,21 @@ identify_common_genes(
   verbose = TRUE
 )
 }
-\description{
-Identify Common Genes Between Datasets
+\arguments{
+\item{bulk_dataset}{A matrix or data frame containing bulk expression data.}
+
+\item{sc_dataset}{A Seurat object containing single-cell expression data.}
+
+\item{nfeature}{Number of variable features to select, a character vector
+of gene names, or `NULL` to use all common genes.}
+
+\item{verbose}{Logical; whether to print progress messages.}
 }
-\keyword{internal}
+\value{
+A character vector of common gene names.
+}
+\description{
+Identifies the common genes between bulk and single-cell datasets,
+optionally filtering to highly variable features and excluding ribosomal
+and mitochondrial genes.
+}

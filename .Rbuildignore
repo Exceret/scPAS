@@ -4,3 +4,5 @@
 
 # flir files
 ^flir$
+Flow_diagram.png
+^\.github$

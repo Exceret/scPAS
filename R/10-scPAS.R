@@ -292,14 +292,14 @@ scPAS.optimized <- function(
     seed = seed,
     verbose = verbose
   )
-
   # Step 5: Risk score calculation
   if (verbose) {
     ts_cli$cli_alert_info("Calculating quantified risk scores...")
   }
 
   # Sparse matrix scaling and risk calculation
-  scaled_exp <- Seurat:::FastSparseRowScale(
+  FastSparseRowScale <- utils::getFromNamespace("FastSparseRowScale", "Seurat")
+  scaled_exp <- FastSparseRowScale(
     Expression_cell,
     display_progress = FALSE
   )
@@ -356,8 +356,21 @@ scPAS.optimized <- function(
   return(sc_dataset)
 }
 
-#' @title Identify Common Genes Between Datasets
-#' @keywords internal
+#' Identify Common Genes Between Datasets
+#'
+#' @description
+#' Identifies the common genes between bulk and single-cell datasets,
+#' optionally filtering to highly variable features and excluding ribosomal
+#' and mitochondrial genes.
+#'
+#' @param bulk_dataset A matrix or data frame containing bulk expression data.
+#' @param sc_dataset A Seurat object containing single-cell expression data.
+#' @param nfeature Number of variable features to select, a character vector
+#'   of gene names, or `NULL` to use all common genes.
+#' @param verbose Logical; whether to print progress messages.
+#'
+#' @return A character vector of common gene names.
+#' @export
 identify_common_genes <- function(
   bulk_dataset,
   sc_dataset,
@@ -404,8 +417,21 @@ identify_common_genes <- function(
   return(common_genes)
 }
 
-#' @title Prepare Phenotype Data Based on Regression Family
-#' @keywords internal
+#' Prepare Phenotype Data Based on Regression Family
+#'
+#' @description
+#' Prepares the phenotype vector for regression analysis based on the
+#' specified family (gaussian, binomial, or cox).
+#'
+#' @param phenotype Phenotype annotation; format depends on `family`.
+#' @param family Regression family: `"gaussian"`, `"binomial"`, or `"cox"`.
+#' @param tag Character vector of length 2 specifying group names for
+#'   binomial regression.
+#' @param verbose Logical; whether to print progress messages.
+#'
+#' @return A numeric vector (gaussian/binomial) or matrix (cox) of
+#'   phenotype values.
+#' @export
 prepare_phenotype <- function(phenotype, family, tag, verbose) {
   family_processor <- list(
     binomial = function() {
@@ -452,8 +478,25 @@ prepare_phenotype <- function(phenotype, family, tag, verbose) {
   family_processor[[family]]()
 }
 
-#' @title Optimize Model Parameters
-#' @keywords internal
+#' Optimize Model Parameters
+#'
+#' @description
+#' Optimizes alpha and lambda parameters for the network-regularized sparse
+#' regression model (APML0) by iterating over alpha values until the
+#' proportion of selected features falls below a cutoff.
+#'
+#' @param x Design matrix (samples x genes).
+#' @param y Response vector or matrix.
+#' @param Network Gene-gene similarity network matrix.
+#' @param alpha Numeric vector of alpha values to try, or `NULL` for defaults.
+#' @param cutoff Threshold for the proportion of selected features to stop
+#'   iteration.
+#' @param family Regression family: `"gaussian"`, `"binomial"`, or `"cox"`.
+#' @param seed Random seed for reproducibility.
+#' @param verbose Logical; whether to print progress messages.
+#'
+#' @return A list with components `alpha`, `lambda`, and `Coefs`.
+#' @export
 optimize_model <- function(
   x,
   y,
@@ -533,8 +576,24 @@ optimize_model <- function(
   )
 }
 
-#' @title Perform Permutation Test
-#' @keywords internal
+#' Perform Permutation Test
+#'
+#' @description
+#' Performs permutation testing by shuffling model coefficients to generate
+#' a background distribution of risk scores, then computes mean and standard
+#' deviation for each cell (or globally).
+#'
+#' @param scaled_exp Scaled single-cell expression matrix (genes x cells).
+#' @param Coefs Numeric vector of model coefficients.
+#' @param permutation_times Number of permutations.
+#' @param independent Logical; whether to compute per-cell background
+#'   statistics.
+#' @param FDR.threshold FDR threshold (unused in this function, passed for
+#'   consistency).
+#' @param seed Random seed for reproducibility.
+#'
+#' @return A list with `mean.background` and `sd.background`.
+#' @export
 perform_permutation_test <- function(
   scaled_exp,
   Coefs,
@@ -583,8 +642,23 @@ perform_permutation_test <- function(
 }
 
 
-#' @title Calculate Statistics and Cell Labels
-#' @keywords internal
+#' Calculate Statistics and Cell Labels
+#'
+#' @description
+#' Calculates Z-statistics, p-values, FDR-adjusted q-values, and assigns
+#' cell labels ("Positive", "Negative", or "Neutral") based on risk scores
+#' and background statistics.
+#'
+#' @param risk_score Numeric vector of raw risk scores for each cell.
+#' @param mean.background Mean of the background risk score distribution.
+#' @param sd.background Standard deviation of the background risk score
+#'   distribution.
+#' @param FDR.threshold FDR threshold for classifying cells.
+#' @param cell_names Character vector of cell barcodes/names.
+#'
+#' @return A data.table with columns: `cell`, `raw_score`, `Z.statistics`,
+#'   `p.value`, `FDR`, and `cell_label`.
+#' @export
 calculate_risk_score <- function(
   risk_score,
   mean.background,
@@ -608,6 +682,7 @@ calculate_risk_score <- function(
   )
 
   # Fast conditional labeling using data.table
+  cell_label <- NULL
   risk_score_df[,
     cell_label := data.table::fcase(
       Z > 0 & q.value <= FDR.threshold ,

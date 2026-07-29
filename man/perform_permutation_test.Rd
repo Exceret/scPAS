@@ -13,7 +13,26 @@ perform_permutation_test(
   seed
 )
 }
-\description{
-Perform Permutation Test
+\arguments{
+\item{scaled_exp}{Scaled single-cell expression matrix (genes x cells).}
+
+\item{Coefs}{Numeric vector of model coefficients.}
+
+\item{permutation_times}{Number of permutations.}
+
+\item{independent}{Logical; whether to compute per-cell background
+statistics.}
+
+\item{FDR.threshold}{FDR threshold (unused in this function, passed for
+consistency).}
+
+\item{seed}{Random seed for reproducibility.}
 }
-\keyword{internal}
+\value{
+A list with `mean.background` and `sd.background`.
+}
+\description{
+Performs permutation testing by shuffling model coefficients to generate
+a background distribution of risk scores, then computes mean and standard
+deviation for each cell (or globally).
+}

@@ -60,7 +60,10 @@ imputation_ALRA2 <- function(obj, assay = 'RNA', verbose = TRUE) {
   # library(ALRA)
   # library(Matrix)
   # library(Seurat)
-  rlang::check_installed("ALRA", version = "0.0.1") # To install: Exceret/ALRA
+  rlang::check_installed("ALRA", version = "0.0.1", action = \(pkg, ...) {
+    rlang::check_installed("pak")
+    pak::pak("Exceret/ALRA")
+  }) # To install: Exceret/ALRA
   # data <- GetAssayData(object = obj, assay = assay, slot = 'data')
   data <- SeuratObject::LayerData(obj, assay = assay, layer = "data")
   alra <- getExportedValue("ALRA", "alra")
@@ -72,7 +75,7 @@ imputation_ALRA2 <- function(obj, assay = 'RNA', verbose = TRUE) {
   #     .[[3]] %>%
   #     Matrix::t()
   colnames(data_alra) <- colnames(data)
-  data_alra <- Matrix::Matrix(data_alra, sparse = T)
+  data_alra <- Matrix::Matrix(data_alra, sparse = TRUE)
 
   obj[["imputation"]] <- SeuratObject::CreateAssayObject(data = data_alra)
   SeuratObject::DefaultAssay(obj) <- "imputation"
