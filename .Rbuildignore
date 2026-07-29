@@ -1,2 +1,6 @@
 ^[.]?air[.]toml$
 ^\.vscode$
+
+
+# flir files
+^flir$

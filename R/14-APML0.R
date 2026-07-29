@@ -41,7 +41,7 @@
 #' @export
 #'
 #' @return An object of class "APML0" containing model fit
-APML0 = function(
+APML0 <- function(
   x,
   y,
   family = c("gaussian", "binomial", "cox"),
@@ -71,31 +71,31 @@ APML0 = function(
   threshP = 1e-5
 ) {
   #fcall=match.call()
-  family = match.arg(family)
-  penalty = match.arg(penalty)
+  family <- match.arg(family)
+  penalty <- match.arg(penalty)
 
   if (penalty == "Net" & is.null(Omega)) {
-    penalty = "Enet"
+    penalty <- "Enet"
     cat("Enet was performed as no input of Omega")
   }
   if (penalty %in% c("Enet", "Net") & alpha == 1.0) {
-    penalty = "Lasso"
+    penalty <- "Lasso"
     cat("Lasso was performed as alpha=1.0")
   }
 
   if (alpha != 1.0) {
     if (is.null(Omega)) {
-      penalty = "Enet"
+      penalty <- "Enet"
     } else if (!is.null(Omega)) {
-      penalty = "Net"
+      penalty <- "Net"
     }
   } else {
-    penalty = "Lasso"
+    penalty <- "Lasso"
   }
 
-  wbeta = abs(wbeta)
+  wbeta <- abs(wbeta)
 
-  fit = switch(
+  fit <- switch(
     family,
     "gaussian" = LmL0(
       x,
@@ -167,9 +167,9 @@ APML0 = function(
       maxit
     )
   )
-  fit$family = family
+  fit$family <- family
 
   #fit$call=fcall
-  class(fit) = "APML0"
+  class(fit) <- "APML0"
   return(fit)
 }
